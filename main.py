@@ -22,7 +22,7 @@ async def get_info(vid_id: str, x_api_key: str | None = Header(default=None)):
 
     try:
         url = f"https://www.youtube.com/watch?v={vid_id}"
-        yt = YouTube(url, use_po_token=True)
+        yt = YouTube(url, use_po_token=True, token_file="token_file.json")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid video: {e}")
 

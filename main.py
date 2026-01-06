@@ -5,11 +5,16 @@ import os
 
 API_KEY = os.getenv("INTERNAL_API_KEY")
 
+def check_key(x_api_key: str | None):
+    print("API_KEY from env:", repr(API_KEY))
+    print("Received x-api-key:", repr(x_api_key))
+    if not API_KEY or x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
 app = FastAPI()
 
-def check_key(x_api_key: str | None):
-    if not x_api_key or x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+
 
 @app.get("/info/{vid_id}")
 async def get_info(vid_id: str, x_api_key: str | None = Header(default=None)):

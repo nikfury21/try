@@ -4,7 +4,7 @@ from pytubefix import YouTube
 import os
 
 API_KEY = os.getenv("INTERNAL_API_KEY")
-TOKEN_FILE = "/tmp/tokens.json"  # Writable; pre-populate via repo or build script
+TOKEN_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
 
 def check_key(x_api_key: str | None):
     print("Received x-api-key:", repr(x_api_key))

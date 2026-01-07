@@ -19,14 +19,9 @@ async def get_info(vid_id: str, x_api_key: str | None = Header(default=None)):
     ydl_opts = {
         'quiet': True, 
         'no_warnings': True,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['web'],
-                'po_token': os.getenv('YOUTUBE_PO_TOKEN'),
-                'visitor_data': os.getenv('YOUTUBE_VISITOR_DATA')
-            }
-        }
+        'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt')
     }
+
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

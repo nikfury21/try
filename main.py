@@ -21,20 +21,27 @@ async def get_info(vid_id: str, x_api_key: str | None = Header(default=None)):
         'no_warnings': True,
         'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt')
     }
-
-
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            audio_url = next((f['url'] for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none'), None)
-            video_url = next((f['url'] for f in info['formats'] if f.get('vcodec') != 'none' and f.get('acodec') != 'none' and f.get('ext') == 'mp4'), None)
+            audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
+            video_formats = [f for f in info['formats'] if f.get('vcodec') != 'none' and f.get('acodec') != 'none']
             
-        return {
+            audio_url = audio_formats[0]['url'] if audio_formats else None
+            video_url = video_formats[0]['url'] if video_formats else None
+            
+            if not audio_url:
+                raise HTTPException(status_code=404, detail="No audio stream found")
+        
+        return JSONResponse({
             "status": "success",
             "audio_url": audio_url,
             "video_url": video_url,
-            "title": info.get('title'),
-            "duration": info.get('duration')
-        }
-    except:
-        raise HTTPException(status_code=400, detail="Video error")
+            "title": info.get('title', 'Unknown'),
+            "duration": info.get('duration', 0)
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Video error: {str(e)}")

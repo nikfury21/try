@@ -16,7 +16,18 @@ async def get_info(vid_id: str, x_api_key: str | None = Header(default=None)):
     check_key(x_api_key)
     url = f"https://www.youtube.com/watch?v={vid_id}"
     
-    ydl_opts = {'quiet': True, 'no_warnings': True}
+    ydl_opts = {
+        'quiet': True, 
+        'no_warnings': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['web'],
+                'po_token': os.getenv('YOUTUBE_PO_TOKEN'),
+                'visitor_data': os.getenv('YOUTUBE_VISITOR_DATA')
+            }
+        }
+    }
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)

@@ -9,6 +9,8 @@ load_dotenv()
 
 YT_API_KEY = os.getenv("YT_API_KEY")
 DOWNLOAD_DIR = "downloads"
+COOKIE_FILE = "cookies.txt"
+
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 app = FastAPI()
@@ -36,9 +38,12 @@ def download_mp3(video_id: str) -> str:
 
     cmd = [
         "yt-dlp",
+        "--cookies", COOKIE_FILE,
         "-x",
         "--audio-format", "mp3",
+        "--audio-quality", "0",
         "--extractor-args", "youtube:player_client=android",
+        "--no-playlist",
         "-o", output,
         f"https://youtu.be/{video_id}"
     ]
@@ -57,10 +62,12 @@ def song(q: str):
         video_id = search_first_video(q)
         mp3_path = download_mp3(video_id)
 
-        return FileResponse(
+        response = FileResponse(
             mp3_path,
             media_type="audio/mpeg",
             filename=os.path.basename(mp3_path)
         )
+
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

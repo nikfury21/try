@@ -1,47 +1,66 @@
-from fastapi import FastAPI, HTTPException, Header
-from fastapi.responses import JSONResponse
-import yt_dlp
 import os
+import subprocess
+import requests
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from dotenv import load_dotenv
 
-API_KEY = os.getenv("INTERNAL_API_KEY")
+load_dotenv()
 
-def check_key(x_api_key: str | None):
-    if not API_KEY or x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+YT_API_KEY = os.getenv("YT_API_KEY")
+DOWNLOAD_DIR = "downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 app = FastAPI()
 
-@app.get("/info/{vid_id}")
-async def get_info(vid_id: str, x_api_key: str | None = Header(default=None)):
-    check_key(x_api_key)
-    url = f"https://www.youtube.com/watch?v={vid_id}"
-    
-    ydl_opts = {
-        'quiet': True, 
-        'no_warnings': True,
-        'cookiefile': os.path.join(os.path.dirname(__file__), 'cookies.txt')
+def search_first_video(query: str) -> str:
+    url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        "part": "snippet",
+        "q": query,
+        "key": YT_API_KEY,
+        "maxResults": 1,
+        "type": "video"
     }
-    
+
+    r = requests.get(url, params=params, timeout=10)
+    data = r.json()
+
+    if "items" not in data or not data["items"]:
+        raise Exception("No video found")
+
+    return data["items"][0]["id"]["videoId"]
+
+def download_mp3(video_id: str) -> str:
+    output = f"{DOWNLOAD_DIR}/%(title)s.%(ext)s"
+
+    cmd = [
+        "yt-dlp",
+        "-x",
+        "--audio-format", "mp3",
+        "--extractor-args", "youtube:player_client=android",
+        "-o", output,
+        f"https://youtu.be/{video_id}"
+    ]
+
+    subprocess.run(cmd, check=True)
+
+    files = os.listdir(DOWNLOAD_DIR)
+    if not files:
+        raise Exception("Download failed")
+
+    return os.path.join(DOWNLOAD_DIR, files[0])
+
+@app.get("/song")
+def song(q: str):
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
-            video_formats = [f for f in info['formats'] if f.get('vcodec') != 'none' and f.get('acodec') != 'none']
-            
-            audio_url = audio_formats[0]['url'] if audio_formats else None
-            video_url = video_formats[0]['url'] if video_formats else None
-            
-            if not audio_url:
-                raise HTTPException(status_code=404, detail="No audio stream found")
-        
-        return JSONResponse({
-            "status": "success",
-            "audio_url": audio_url,
-            "video_url": video_url,
-            "title": info.get('title', 'Unknown'),
-            "duration": info.get('duration', 0)
-        })
-    except HTTPException:
-        raise
+        video_id = search_first_video(q)
+        mp3_path = download_mp3(video_id)
+
+        return FileResponse(
+            mp3_path,
+            media_type="audio/mpeg",
+            filename=os.path.basename(mp3_path)
+        )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Video error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

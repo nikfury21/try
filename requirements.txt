@@ -1,5 +1,5 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.0
-pytubefix==10.3.6
-requests==2.32.3
+fastapi
+uvicorn
 yt-dlp
+requests
+python-dotenv
